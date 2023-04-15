@@ -57,6 +57,7 @@ interface StateProps {
   speech: SpeechProps;
   chat: ChatProps;
   showSettings: boolean;
+  showSystemMessagesModal: boolean;
 }
 
 const starting = ref(true);
@@ -66,7 +67,7 @@ const DEFAULT_STATE: StateProps = {
     recognition: null,
     listening: false,
     continuous: true,
-    lang: 'en-US',
+    lang: LANGUAGES[0].value,
     askAfterRecognition: true,
   },
   speech: {
@@ -87,6 +88,7 @@ const DEFAULT_STATE: StateProps = {
     temperature: 1,
   },
   showSettings: false,
+  showSystemMessagesModal: false,
 };
 
 let state = reactive<StateProps>(DEFAULT_STATE);
@@ -95,7 +97,7 @@ const speechLang = ref(LANGUAGES[0].value);
 
 const getVoicesByLang = (lang: string) => {
   let voices = speechSynthesis.getVoices();
-  console.log(voices);
+  // console.log(voices);
   return voices.filter((voice) => voice.lang === lang);
 };
 
@@ -104,22 +106,32 @@ watch(speechLang, (lang) => {
 });
 
 watch(state, (newValue) => {
-  console.log('state changed', newValue);
+  // console.log('state changed', newValue);
   localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(newValue));
 });
 
 const start = () => {
   const stateValue = localStorage.getItem(STORAGE_STATE_KEY);
   const currentState = stateValue ? JSON.parse(stateValue) : DEFAULT_STATE;
-  console.log('start', currentState);
+  // console.log('start', currentState);
 
-  state.chat = currentState.chat;
-  state.recognition = currentState.recognition;
+  state.chat = {
+    ...currentState.chat,
+    pending: false,
+  };
+  state.recognition = {
+    ...currentState.recognition,
+    recognition: null,
+    listening: false,
+  };
 
   speechLang.value = currentState.speech.lang;
+  const voices = getVoicesByLang(currentState.speech.lang);
   state.speech = {
     ...currentState.speech,
-    voices: getVoicesByLang(currentState.speech.lang),
+    voices,
+    voice: voices.find((voice) => voice.name === currentState.speech.voiceName),
+    speaking: false,
   };
 
   starting.value = false;
@@ -130,9 +142,9 @@ const handleSelectVoice = (e: any) => {
     state.speech.voices.find((voice) => voice.name === e.target.value) || null;
 };
 
-const autoresize = (e: any) => {
+const autoresizeChatContent = (e: any) => {
   setTimeout(function () {
-    e.target.style.cssText = 'height:' + e.target.scrollHeight + 'px';
+    e.style.cssText = 'height:' + e.scrollHeight + 'px';
   }, 0);
 };
 
@@ -163,8 +175,11 @@ const speak = (content: string) => {
     state.speech.checkSpeaking = setInterval(() => {
       if (!speechSynthesis.speaking) {
         clearInterval(state.speech.checkSpeaking);
-        state.speech.speaking = false;
-        state.speech.checkSpeaking = null;
+        state.speech = {
+          ...state.speech,
+          speaking: false,
+          checkSpeaking: null,
+        };
       }
     }, 100);
   }
@@ -199,6 +214,9 @@ const streamReply = (content: string) => {
 };
 
 const ask = async () => {
+  if (!state.chat.content) {
+    return;
+  }
   if (!state.chat.apiKey) {
     alert('Please enter your OpenAI API key.');
     return;
@@ -270,6 +288,23 @@ const ask = async () => {
   }
 };
 
+const stopSpeaking = () => {
+  speechSynthesis.cancel();
+  if (state.speech.checkSpeaking) {
+    clearInterval(state.speech.checkSpeaking);
+  }
+  state.speech = {
+    ...state.speech,
+    speaking: false,
+    checkSpeaking: null,
+  };
+};
+
+const newConversation = () => {
+  state.chat.messages = [];
+  stopSpeaking();
+};
+
 const voice = () => {
   if (!state.recognition.recognition) {
     const speechRecognition = (window as any).webkitSpeechRecognition;
@@ -279,13 +314,14 @@ const voice = () => {
       // console.log('onresult', event);
       const current = event.resultIndex;
       const speechResult = event.results[current][0].transcript;
-      state.chat.content += speechResult;
+      state.chat.content += speechResult + ' ';
+      autoresizeChatContent(document.getElementById('chat-content'));
     };
 
     recognition.onspeechend = () => {
       recognition.stop();
       state.recognition.listening = false;
-      console.log('Speech recognition has stopped.');
+      // console.log('Speech recognition has stopped.');
       if (state.recognition.askAfterRecognition) {
         setTimeout(() => {
           ask();
@@ -349,11 +385,11 @@ const voice = () => {
   </div>
   <div v-if="!starting" class="fixed bottom-0 left-0 w-full">
     <div v-if="state.speech.speaking" class="py-2">
-      <VoiceAnimation />
+      <VoiceAnimation @click="stopSpeaking" />
     </div>
     <div
       v-if="state.showSettings"
-      class="flex flex-col px-3 py-5 gap-4 bg-gray-50 dark:bg-gray-700"
+      class="flex flex-col px-3 py-3 gap-4 bg-gray-50 dark:bg-gray-700"
     >
       <div class="flex flex-col gap-1">
         <h6 class="text-lg font-bold dark:text-white">Voice Recognition</h6>
@@ -493,8 +529,33 @@ const voice = () => {
             v-model="state.chat.temperature"
           />
         </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="px-3 py-2 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+            @click="newConversation"
+          >
+            New conversation
+          </button>
+          <button
+            type="button"
+            class="px-3 py-2 text-xs font-medium text-center text-white bg-green-700 rounded-lg hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
+            @click="state.showSystemMessagesModal = true"
+          >
+            Select system messages
+          </button>
+          <ChatSystemMessages
+            v-if="state.showSystemMessagesModal"
+            @closed="state.showSystemMessagesModal = false"
+            @selected="
+              ($event) => {
+                state.chat.system = $event;
+                state.showSystemMessagesModal = false;
+              }
+            "
+          />
+        </div>
       </div>
-      <div class="flex gap-4"></div>
     </div>
     <div class="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-700">
       <button
@@ -524,36 +585,14 @@ const voice = () => {
           ></path>
         </svg>
       </button>
-      <button
-        type="button"
-        class="inline-flex justify-center p-2 text-gray-500 rounded-lg cursor-pointer hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600"
-        title="New conversation"
-        @click="state.chat.messages = []"
-      >
-        <svg
-          class="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 011.037-.443 48.282 48.282 0 005.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
-          ></path>
-        </svg>
-        <span class="sr-only">New conversation</span>
-      </button>
 
       <textarea
         rows="1"
+        id="chat-content"
         class="block mx-4 p-2.5 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 resize-none overflow-hidden box-border"
         placeholder="Your message..."
         v-model="state.chat.content"
-        @keydown="autoresize"
+        @keydown="($event) => autoresizeChatContent($event.target)"
       ></textarea>
       <button
         type="button"
