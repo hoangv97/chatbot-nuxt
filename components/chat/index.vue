@@ -50,6 +50,7 @@ interface ChatProps {
   messages: MessageProps[];
   system: string;
   temperature: number;
+  showMessages: boolean;
 }
 
 interface StateProps {
@@ -86,6 +87,7 @@ const DEFAULT_STATE: StateProps = {
     apiKey: '',
     system: '',
     temperature: 1,
+    showMessages: true,
   },
   showSettings: false,
   showSystemMessagesModal: false,
@@ -353,7 +355,7 @@ const voice = () => {
   <div v-if="starting" class="w-full h-screen flex items-center justify-center">
     <button
       type="button"
-      class="text-white bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-lg text-base px-5 py-3 text-center"
+      class="text-white bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-full text-base px-6 py-3 text-center"
       @click="start"
     >
       Start
@@ -557,7 +559,7 @@ const voice = () => {
         </div>
       </div>
     </div>
-    <div class="flex items-center px-3 py-2 bg-gray-50 dark:bg-gray-700">
+    <div class="flex items-center px-2 py-2 bg-gray-50 dark:bg-gray-700">
       <button
         type="button"
         class="inline-flex justify-center p-2 text-gray-500 rounded-lg cursor-pointer hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600"
@@ -589,7 +591,7 @@ const voice = () => {
       <textarea
         rows="1"
         id="chat-content"
-        class="block mx-4 p-2.5 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 resize-none overflow-hidden box-border"
+        class="block mx-2 p-2.5 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 resize-none overflow-hidden box-border"
         placeholder="Your message..."
         v-model="state.chat.content"
         @keydown="($event) => autoresizeChatContent($event.target)"
