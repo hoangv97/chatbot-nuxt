@@ -61,8 +61,6 @@ interface StateProps {
   showSystemMessagesModal: boolean;
 }
 
-const starting = ref(true);
-
 const DEFAULT_STATE: StateProps = {
   recognition: {
     recognition: null,
@@ -135,9 +133,9 @@ const start = () => {
     voice: voices.find((voice) => voice.name === currentState.speech.voiceName),
     speaking: false,
   };
-
-  starting.value = false;
 };
+
+start();
 
 const handleSelectVoice = (e: any) => {
   state.speech.voice =
@@ -352,40 +350,8 @@ const voice = () => {
 </script>
 
 <template>
-  <div v-if="starting" class="w-full h-screen flex items-center justify-center">
-    <button
-      type="button"
-      class="text-white bg-gradient-to-br from-purple-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-full text-base px-6 py-3 text-center"
-      @click="start"
-    >
-      Start
-    </button>
-  </div>
-  <div v-if="!starting" class="mt-5 mb-28 flex flex-col gap-2">
-    <div
-      v-for="(message, i) in state.chat.messages"
-      :key="i"
-      class="flex"
-      :class="{
-        'justify-end': message.role === 'user',
-        'justify-start': ['assistant', 'system'].includes(message.role),
-      }"
-    >
-      <div
-        class="rounded-lg p-2.5 text-sm text-gray-900 dark:text-white"
-        :class="{
-          'bg-blue-400 dark:bg-blue-700 text-gray-900 dark:text-white':
-            message.role === 'user',
-          'bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white':
-            message.role === 'assistant',
-          'bg-orange-50 dark:bg-orange-700 text-orange-900 dark:text-orange':
-            message.role === 'system',
-        }"
-        v-html="message.content.replaceAll('\n', '</br>')"
-      ></div>
-    </div>
-  </div>
-  <div v-if="!starting" class="fixed bottom-0 left-0 w-full">
+  <ChatMessages :messages="state.chat.messages" />
+  <div class="fixed bottom-0 left-0 w-full">
     <div v-if="state.speech.speaking" class="py-2">
       <VoiceAnimation @click="stopSpeaking" />
     </div>
@@ -544,7 +510,7 @@ const voice = () => {
             class="px-3 py-2 text-xs font-medium text-center text-white bg-green-700 rounded-lg hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
             @click="state.showSystemMessagesModal = true"
           >
-            Select system messages
+            System messages
           </button>
           <ChatSystemMessages
             v-if="state.showSystemMessagesModal"

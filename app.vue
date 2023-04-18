@@ -1,7 +1,7 @@
 <script setup lang="ts">
 useHead({
-  title: 'Talking AI',
-  meta: [{ name: 'description', content: 'Talking AI.' }],
+  title: 'Samantha',
+  meta: [{ name: 'description', content: 'Samantha AI.' }],
   bodyAttrs: {
     class: 'bg-white dark:bg-gray-900',
   },
