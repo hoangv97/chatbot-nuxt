@@ -5,6 +5,7 @@ export default defineNuxtConfig({
   },
   modules: [
     '@nuxtjs/tailwindcss',
+    '@vite-pwa/nuxt',
   ],
   css: [
     '~/assets/css/main.scss'
