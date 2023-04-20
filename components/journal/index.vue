@@ -22,7 +22,7 @@ const state = reactive({
   content: '',
   ai: {
     apiKey: '',
-    question: 'VIEWPORT_VS_CLIENT_HEIGHT_RATIO',
+    question: '',
     template: getTemplateByCurrentTime(),
   },
   showSettings: false,
@@ -117,7 +117,7 @@ const start = () => {
   state.ai.apiKey = settings.apiKey || '';
   // state.ai.template = settings.aiTemplate || DEFAULT_AI_TEMPLATE;
 
-  // askAi();
+  askAi();
 };
 
 start();
