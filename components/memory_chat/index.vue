@@ -1,24 +1,5 @@
 <script setup lang="ts">
-interface LanguageProps {
-  value: string;
-  label: string;
-}
-
-const LANGUAGES: LanguageProps[] = [
-  { value: 'en-US', label: 'English US' },
-  { value: 'en-GB', label: 'English UK' },
-  // { value: 'es-ES', label: 'Spanish' },
-  // { value: 'fr-FR', label: 'French' },
-  // { value: 'de-DE', label: 'German' },
-  // { value: 'it-IT', label: 'Italian' },
-  // { value: 'pt-BR', label: 'Portuguese' },
-  // { value: 'ru-RU', label: 'Russian' },
-  { value: 'ja-JP', label: 'Japanese' },
-  { value: 'ko-KR', label: 'Korean' },
-  { value: 'zh-CN', label: 'Chinese' },
-];
-
-const STORAGE_STATE_KEY = 'CHAT_APP_STATE';
+const STORAGE_STATE_KEY = 'MEMORY_CHAT_APP_STATE';
 
 interface MessageProps {
   role: string;
@@ -48,8 +29,6 @@ interface ChatProps {
   pending: boolean;
   content: string;
   messages: MessageProps[];
-  system: string;
-  temperature: number;
   showMessages: boolean;
 }
 
@@ -66,7 +45,7 @@ const DEFAULT_STATE: StateProps = {
     recognition: null,
     listening: false,
     continuous: true,
-    lang: LANGUAGES[0].value,
+    lang: 'en-US',
     askAfterRecognition: true,
   },
   speech: {
@@ -76,15 +55,13 @@ const DEFAULT_STATE: StateProps = {
     voices: [],
     speaking: false,
     checkSpeaking: null,
-    lang: LANGUAGES[0].value,
+    lang: 'en-US',
   },
   chat: {
     pending: false,
     content: '',
     messages: [],
     apiKey: '',
-    system: '',
-    temperature: 1,
     showMessages: true,
   },
   showSettings: false,
@@ -93,31 +70,39 @@ const DEFAULT_STATE: StateProps = {
 
 let state = reactive<StateProps>(DEFAULT_STATE);
 
-const speechLang = ref(LANGUAGES[0].value);
-
 const getVoicesByLang = (lang: string) => {
   let voices = speechSynthesis.getVoices();
   // console.log(voices);
   return voices.filter((voice) => voice.lang === lang);
 };
 
-watch(speechLang, (lang) => {
-  state.speech = { ...state.speech, lang, voices: getVoicesByLang(lang) };
-});
-
 watch(state, (newValue) => {
   // console.log('state changed', newValue);
   localStorage.setItem(STORAGE_STATE_KEY, JSON.stringify(newValue));
 });
 
-const start = () => {
+const client = useSupabaseClient<any>();
+const user = useSupabaseUser();
+
+const start = async () => {
   const stateValue = localStorage.getItem(STORAGE_STATE_KEY);
   const currentState = stateValue ? JSON.parse(stateValue) : DEFAULT_STATE;
-  // console.log('start', currentState);
+
+  const userId = user?.value?.id;
+  if (!userId) {
+    return;
+  }
+  const { data } = await client
+    .from('memory_chat_messages')
+    .select('id, content, role, created_at')
+    .eq('user_id', userId)
+    .order('created_at')
+    .limit(10);
 
   state.chat = {
     ...currentState.chat,
     pending: false,
+    messages: data,
   };
   state.recognition = {
     ...currentState.recognition,
@@ -125,7 +110,6 @@ const start = () => {
     listening: false,
   };
 
-  speechLang.value = currentState.speech.lang;
   const voices = getVoicesByLang(currentState.speech.lang);
   state.speech = {
     ...currentState.speech,
@@ -133,9 +117,10 @@ const start = () => {
     voice: voices.find((voice) => voice.name === currentState.speech.voiceName),
     speaking: false,
   };
+  console.log('start', state);
 };
 
-start();
+await start();
 
 const handleSelectVoice = (e: any) => {
   state.speech.voice =
@@ -221,13 +206,20 @@ const ask = async () => {
     alert('Please enter your OpenAI API key.');
     return;
   }
+
+  const { data: resData } = await useFetch('/api/memory_chat', {
+    method: 'POST',
+    params: {
+      user_id: user?.value?.id,
+    },
+    body: {
+      conversationHistory: [...state.chat.messages],
+      prompt: state.chat.content,
+    },
+  });
+  console.log(resData);
+
   state.chat.pending = true;
-  if (state.chat.messages.length === 0 && state.chat.system) {
-    state.chat.messages.push({
-      role: 'system',
-      content: state.chat.system,
-    });
-  }
   state.chat.messages.push({ role: 'user', content: state.chat.content });
   state.chat.content = '';
 
@@ -242,7 +234,6 @@ const ask = async () => {
       body: JSON.stringify({
         model: 'gpt-3.5-turbo',
         messages: [...state.chat.messages],
-        temperature: state.chat.temperature,
         stream: true,
       }),
     }
@@ -276,6 +267,30 @@ const ask = async () => {
           speak(state.speech.content);
           state.speech.content = '';
         }
+
+        // save messages
+        const userId = user?.value?.id;
+        if (userId) {
+          const messages = state.chat.messages.slice(-2).map((message) => ({
+            user_id: userId,
+            content: message.content,
+            role: message.role,
+            created_at: new Date(),
+          }));
+          await client.from('memory_chat_messages').insert(messages);
+
+          const { data: resData } = await useFetch('/api/memory_chat/embed', {
+            method: 'POST',
+            params: {
+              user_id: user?.value?.id,
+            },
+            body: {
+              messages,
+            },
+          });
+          console.log(resData);
+        }
+
         break; // Stream finished
       }
       try {
@@ -299,11 +314,6 @@ const stopSpeaking = () => {
     speaking: false,
     checkSpeaking: null,
   };
-};
-
-const newConversation = () => {
-  state.chat.messages = [];
-  stopSpeaking();
 };
 
 const voice = () => {
@@ -403,45 +413,10 @@ const voice = () => {
             >
           </label>
         </div>
-        <div class="flex items-center gap-4">
-          <label class="block text-sm font-medium text-gray-900 dark:text-white"
-            >Language</label
-          >
-          <select
-            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            v-model="state.recognition.lang"
-            @change="(event) => (state.recognition.lang = event.target.value)"
-          >
-            <option
-              v-for="lang in LANGUAGES"
-              :key="lang.value"
-              :value="lang.value"
-            >
-              {{ lang.label }}
-            </option>
-          </select>
-        </div>
       </div>
       <div class="flex flex-col gap-1">
         <h6 class="text-lg font-bold dark:text-white">Speech</h6>
-        <div class="flex items-center gap-4">
-          <label class="block text-sm font-medium text-gray-900 dark:text-white"
-            >Language</label
-          >
-          <select
-            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-            v-model="speechLang"
-            @change="(event) => (speechLang = event.target.value)"
-          >
-            <option
-              v-for="lang in LANGUAGES"
-              :key="lang.value"
-              :value="lang.value"
-            >
-              {{ lang.label }}
-            </option>
-          </select>
-        </div>
+
         <div class="flex items-center gap-4">
           <label class="block text-sm font-medium text-gray-900 dark:text-white"
             >Voice</label
@@ -475,55 +450,6 @@ const voice = () => {
             }
           "
         />
-
-        <textarea
-          rows="3"
-          class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-          placeholder="System message..."
-          v-model="state.chat.system"
-        ></textarea>
-
-        <div class="flex items-center gap-3">
-          <label
-            class="block w-40 text-sm font-medium text-gray-900 dark:text-white"
-          >
-            Temperature: {{ state.chat.temperature }}
-          </label>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.1"
-            class="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer range-sm dark:bg-gray-600"
-            v-model="state.chat.temperature"
-          />
-        </div>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="px-3 py-2 text-xs font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-            @click="newConversation"
-          >
-            New conversation
-          </button>
-          <button
-            type="button"
-            class="px-3 py-2 text-xs font-medium text-center text-white bg-green-700 rounded-lg hover:bg-green-800 focus:ring-4 focus:outline-none focus:ring-green-300 dark:bg-green-600 dark:hover:bg-green-700 dark:focus:ring-green-800"
-            @click="state.showSystemMessagesModal = true"
-          >
-            System messages
-          </button>
-          <ChatSystemMessages
-            v-if="state.showSystemMessagesModal"
-            @closed="state.showSystemMessagesModal = false"
-            @selected="
-              ($event) => {
-                state.chat.system = $event;
-                state.showSystemMessagesModal = false;
-              }
-            "
-          />
-        </div>
       </div>
     </div>
     <div class="flex items-center px-2 py-2 bg-gray-50 dark:bg-gray-700">
