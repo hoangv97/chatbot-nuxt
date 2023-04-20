@@ -106,7 +106,7 @@ const saveToNotion = async () => {
         @click="saveToNotion"
         :disabled="!state.notionApiKey || !state.notionDatabaseId || !content"
       >
-        Save journal
+        Save to Notion
       </button>
     </div>
   </CommonModal>

@@ -18,5 +18,13 @@
         Journal
       </button>
     </NuxtLink>
+    <NuxtLink to="/note">
+      <button
+        type="button"
+        class="text-white bg-gradient-to-br from-cyan-600 to-blue-500 hover:bg-gradient-to-bl focus:ring-4 focus:outline-none focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-lg text-base px-6 py-3 text-center"
+      >
+        Note
+      </button>
+    </NuxtLink>
   </div>
 </template>

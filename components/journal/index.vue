@@ -1,21 +1,10 @@
 <script setup lang="ts">
 const JOURNAL_APP_SETTINGS_KEY = 'JOURNAL_APP_SETTINGS';
 
-const currentDate = new Date();
-
-const getTemplateByCurrentTime = () => {
-  const hour = currentDate.getHours();
-  // const hour = 18;
-  let hourTemplate = '';
-  if (hour >= 0 && hour < 12) {
-    hourTemplate = 'I am writing in the morning to start a new day. ';
-  } else if (hour >= 12 && hour < 18) {
-    hourTemplate = 'I am writing in the afternoon. ';
-  } else {
-    hourTemplate = 'I am writing at the end of the day to review my day. ';
-  }
-  return `Act as a personal assistant and ask me a question about my daily journal. ${hourTemplate}My journal is below:`;
-};
+const { promptTemplate, askWhenStart } = defineProps<{
+  promptTemplate: string;
+  askWhenStart?: boolean;
+}>();
 
 const state = reactive({
   title: '',
@@ -23,7 +12,7 @@ const state = reactive({
   ai: {
     apiKey: '',
     question: '',
-    template: getTemplateByCurrentTime(),
+    template: promptTemplate,
   },
   showSettings: false,
   visualViewportHeight: 0,
@@ -117,7 +106,9 @@ const start = () => {
   state.ai.apiKey = settings.apiKey || '';
   // state.ai.template = settings.aiTemplate || DEFAULT_AI_TEMPLATE;
 
-  askAi();
+  if (askWhenStart) {
+    askAi();
+  }
 };
 
 start();
@@ -137,7 +128,7 @@ start();
     /> -->
     <p class="italic font-thin">
       {{
-        currentDate.toLocaleDateString('en-US', {
+        new Date().toLocaleDateString('en-US', {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
