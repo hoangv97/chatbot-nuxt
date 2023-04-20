@@ -9,7 +9,9 @@
     "postinstall": "nuxt prepare"
   },
   "devDependencies": {
-    "nuxt": "^3.4.1"
+    "nuxt": "^3.4.1",
+    "sass": "^1.62.0",
+    "sass-loader": "^13.2.2"
   },
   "dependencies": {
     "@nuxtjs/tailwindcss": "^6.6.6"

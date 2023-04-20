@@ -140,8 +140,13 @@ const start = () => {
 start();
 
 const handleSelectVoice = (e: any) => {
-  state.speech.voice =
-    state.speech.voices.find((voice) => voice.name === e.target.value) || null;
+  state.speech = {
+    ...state.speech,
+    voiceName: e.target.value,
+    voice:
+      state.speech.voices.find((voice) => voice.name === e.target.value) ||
+      null,
+  };
 };
 
 const autoresizeChatContent = (e: any) => {
