@@ -144,7 +144,11 @@ const handleSelectVoice = (e: any) => {
 
 const autoresizeChatContent = (e: any) => {
   setTimeout(function () {
-    e.style.cssText = 'height:' + e.scrollHeight + 'px';
+    if (e.value.trim() === '') {
+      e.style.cssText = 'height: auto';
+    } else {
+      e.style.cssText = 'height:' + e.scrollHeight + 'px';
+    }
   }, 0);
 };
 
