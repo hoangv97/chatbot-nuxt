@@ -1,30 +1,33 @@
 <script setup lang="ts">
 const JOURNAL_APP_SETTINGS_KEY = 'JOURNAL_APP_SETTINGS';
 
-const DEFAULT_AI_TEMPLATE = `Act as a personal assistant and ask me a question about this journal so I can reflect better. My journal is below:`;
-
 const currentDate = new Date();
+
+const getTemplateByCurrentTime = () => {
+  const hour = currentDate.getHours();
+  // const hour = 18;
+  let hourTemplate = '';
+  if (hour >= 0 && hour < 12) {
+    hourTemplate = 'I am writing in the morning to start a new day. ';
+  } else if (hour >= 12 && hour < 18) {
+    hourTemplate = 'I am writing in the afternoon. ';
+  } else {
+    hourTemplate = 'I am writing at the end of the day to review my day. ';
+  }
+  return `Act as a personal assistant and ask me a question about my daily journal. ${hourTemplate}My journal is below:`;
+};
 
 const state = reactive({
   title: '',
   content: '',
   ai: {
     apiKey: '',
-    question: '',
-    template: DEFAULT_AI_TEMPLATE,
+    question: 'VIEWPORT_VS_CLIENT_HEIGHT_RATIO',
+    template: getTemplateByCurrentTime(),
   },
   showSettings: false,
+  visualViewportHeight: 0,
 });
-
-const start = () => {
-  const settings = JSON.parse(
-    localStorage.getItem(JOURNAL_APP_SETTINGS_KEY) || '{}'
-  );
-  state.ai.apiKey = settings.apiKey || '';
-  state.ai.template = settings.aiTemplate || DEFAULT_AI_TEMPLATE;
-};
-
-start();
 
 const askAi = async () => {
   state.ai.question = 'I am thinking...';
@@ -88,11 +91,44 @@ const askAi = async () => {
     }
   }
 };
+
+const onFocusContent = () => {
+  if ('visualViewport' in window) {
+    const VIEWPORT_VS_CLIENT_HEIGHT_RATIO = 0.75;
+    window.visualViewport?.addEventListener('resize', (event: any) => {
+      if (
+        (event.target.height * event.target.scale) / window.screen.height <
+        VIEWPORT_VS_CLIENT_HEIGHT_RATIO
+      ) {
+        state.visualViewportHeight =
+          (event.target.height / event.target.scale) *
+          VIEWPORT_VS_CLIENT_HEIGHT_RATIO;
+      } else {
+        state.visualViewportHeight = 0;
+      }
+    });
+  }
+};
+
+const start = () => {
+  const settings = JSON.parse(
+    localStorage.getItem(JOURNAL_APP_SETTINGS_KEY) || '{}'
+  );
+  state.ai.apiKey = settings.apiKey || '';
+  // state.ai.template = settings.aiTemplate || DEFAULT_AI_TEMPLATE;
+
+  // askAi();
+};
+
+start();
 </script>
 
 <template>
   <div
     class="w-full h-screen text-sm text-gray-800 dark:text-white flex flex-col gap-3 py-3"
+    :style="{
+      height: `calc(100vh - ${state.visualViewportHeight}px)`,
+    }"
   >
     <!-- <input
       class="block w-full text-lg px-0 bg-transparent dark:bg-transparent dark:placeholder-gray-400 focus:ring-0 outline-none"
@@ -115,6 +151,7 @@ const askAi = async () => {
       placeholder="Your thought..."
       v-model="state.content"
       @keypress.enter="askAi"
+      @focus="onFocusContent"
     ></textarea>
     <div class="flex gap-1 items-end">
       <button class="w-9 h-9" @click="state.showSettings = !state.showSettings">
@@ -129,7 +166,7 @@ const askAi = async () => {
       />
       <div
         v-if="state.ai.question"
-        class="chat-bubble left w-full bg-slate-500"
+        class="chat-bubble left w-full bg-blue-200 dark:bg-blue-500"
         @click="askAi"
       >
         {{ state.ai.question }}
