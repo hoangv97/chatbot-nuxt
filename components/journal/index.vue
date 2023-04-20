@@ -118,7 +118,7 @@ const askAi = async () => {
     ></textarea>
     <div class="flex gap-1 items-end">
       <button class="w-9 h-9" @click="state.showSettings = !state.showSettings">
-        <img src="favicon.ico" />
+        <img src="/favicon.ico" />
       </button>
       <JournalSettings
         v-if="state.showSettings"
