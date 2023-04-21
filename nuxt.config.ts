@@ -3,6 +3,7 @@ export default defineNuxtConfig({
   nitro: {
     preset: 'vercel'
   },
+  plugins: [{ src: '~/plugins/vercel.ts', mode: 'client' }],
   modules: [
     '@nuxtjs/tailwindcss',
     '@vite-pwa/nuxt',
