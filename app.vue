@@ -11,6 +11,10 @@ useHead({
 
 <template>
   <div class="px-5 text-gray-900 dark:text-white">
-    <NuxtPage />
+    <VitePwaManifest />
+    <NuxtLoadingIndicator />
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
   </div>
 </template>

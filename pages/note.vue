@@ -1,9 +1,13 @@
 <script setup lang="ts">
 const getTemplate = () => {
-  return `Act as a personal assistant and ask me a question about my writings to help me write better. My writings is below:`;
+  return `Ask me a question about my writings to help me write better. My writings is below:`;
 };
 </script>
 
 <template>
-  <Journal :prompt-template="getTemplate()" />
+  <Journal
+    :prompt-template="getTemplate()"
+    can-edit-template
+    default-question="Hi! How can I help you today?"
+  />
 </template>

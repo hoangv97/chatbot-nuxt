@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const { apiKey, databaseId, content } = await readBody(event) as any
+  const { apiKey, databaseId, content, title } = await readBody(event) as any
 
   const pages = await getNotionPages(apiKey, databaseId, {
     property: 'Date',
@@ -32,6 +32,23 @@ export default defineEventHandler(async (event) => {
       ],
     }
   }))
+
+  if (title) {
+    children.unshift({
+      object: 'block',
+      type: 'heading_3',
+      heading_3: {
+        rich_text: [
+          {
+            type: 'text',
+            text: {
+              content: title,
+            },
+          },
+        ],
+      },
+    })
+  }
 
   children.unshift({
     object: 'block',

@@ -1,17 +1,20 @@
 <script setup lang="ts">
 const JOURNAL_APP_SETTINGS_KEY = 'JOURNAL_APP_SETTINGS';
 
-const { promptTemplate, askWhenStart } = defineProps<{
-  promptTemplate: string;
-  askWhenStart?: boolean;
-}>();
+const { promptTemplate, askWhenStart, canEditTemplate, defaultQuestion } =
+  defineProps<{
+    promptTemplate: string;
+    askWhenStart?: boolean;
+    canEditTemplate?: boolean;
+    defaultQuestion?: string;
+  }>();
 
 const state = reactive({
   title: '',
   content: '',
   ai: {
     apiKey: '',
-    question: '',
+    question: defaultQuestion || '',
     template: promptTemplate,
   },
   showSettings: false,
@@ -121,11 +124,11 @@ start();
       height: `calc(100vh - ${state.visualViewportHeight}px)`,
     }"
   >
-    <!-- <input
+    <input
       class="block w-full text-lg px-0 bg-transparent dark:bg-transparent dark:placeholder-gray-400 focus:ring-0 outline-none"
       placeholder="Title"
       v-model="state.title"
-    /> -->
+    />
     <p class="italic font-thin">
       {{
         new Date().toLocaleDateString('en-US', {
@@ -136,10 +139,17 @@ start();
         })
       }}
     </p>
+    <input
+      v-if="canEditTemplate"
+      class="block w-full italic text-sm px-0 bg-transparent dark:bg-transparent dark:placeholder-gray-400 focus:ring-0 outline-none"
+      placeholder="Template"
+      v-model="state.ai.template"
+    />
+
     <textarea
       id="editor"
       class="block h-full w-full px-0 bg-transparent dark:bg-transparent dark:placeholder-gray-400 focus:ring-0 outline-none resize-none"
-      placeholder="Your thought..."
+      placeholder="Your thought... Press enter to ask AI."
       v-model="state.content"
       @keypress.enter="askAi"
       @focus="onFocusContent"
@@ -150,6 +160,7 @@ start();
       </button>
       <JournalSettings
         v-if="state.showSettings"
+        :title="state.title"
         :content="state.content"
         :template="state.ai.template"
         @change-template="state.ai.template = $event"
